@@ -1433,20 +1433,15 @@
       }
 
       paint(0);
-      start();
+      requestAnimationFrame(start);
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) stop();
         else start();
       });
 
-      const s1 = document.getElementById('s1');
-      if (s1 && 'IntersectionObserver' in window) {
-        const io = new IntersectionObserver(entries => {
-          entries.forEach(e => (e.isIntersecting ? start() : stop()));
-        }, { threshold: 0.4 });
-        io.observe(s1);
-      }
+      // Intentionally runs regardless of slide visibility; page-level visibility
+      // pausing is handled via `visibilitychange` above.
     })();
   </script>
 </body>
