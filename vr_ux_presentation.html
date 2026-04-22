@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VR Kasutajakogemus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,600;0,700;0,800;1,300&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet"/>
+
+  <style>
+    /* ================================================
+       THEME VARIABLES
+       ================================================ */
+    :root {
+      --bg:          #0A0F1E;
+      --card-bg:     #111827;
+      --card-border: rgba(124, 58, 237, 0.18);
+      --purple:      #7C3AED;
+      --purple-lt:   #A78BFA;
+      --cyan:        #06B6D4;
+      --cyan-lt:     #67E8F9;
+      --white:       #FFFFFF;
+      --muted:       #94A3B8;
+      --pink:        #F472B6;
+      --red:         #EF4444;
+      --red-lt:      #FCA5A5;
+      --sep:         rgba(255,255,255,0.06);
+
+      --font-display: 'Exo 2', sans-serif;
+      --font-body:    'DM Sans', sans-serif;
+
+      --title-size:    clamp(2.2rem, 6vw, 5rem);
+      --h2-size:       clamp(1.6rem, 4vw, 3rem);
+      --h3-size:       clamp(1.1rem, 2.6vw, 1.8rem);
+      --body-size:     clamp(0.9rem, 1.6vw, 1.25rem);
+      --small-size:    clamp(0.75rem, 1.1vw, 1rem);
+      --label-size:    clamp(0.55rem, 0.8vw, 0.72rem);
+
+      --slide-padding: clamp(1.2rem, 4vw, 4rem);
+      --content-gap:   clamp(0.6rem, 1.8vw, 1.8rem);
+      --card-gap:      clamp(0.5rem, 1.2vw, 1rem);
+      --card-pad:      clamp(0.8rem, 1.5vw, 1.4rem);
+
+      --ease-expo:   cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --duration:    0.65s;
+    }
+
+    /* ================================================
+       RESET + VIEWPORT BASE
+       ================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+      background: var(--bg);
+      font-family: var(--font-body);
+    }
+    html {
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+    }
+    body { overflow-y: scroll; }
+
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 1;
+    }
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      max-height: 100%;
+      overflow: hidden;
+      padding: var(--slide-padding);
+    }
+
+    img, .image-container {
+      max-width: 100%;
+      max-height: min(50vh, 400px);
+      object-fit: contain;
+    }
+
+    @media (max-height: 700px) {
+      :root {
+        --slide-padding: clamp(0.8rem, 2.5vw, 2rem);
+        --content-gap:   clamp(0.4rem, 1.2vw, 1rem);
+        --title-size:    clamp(1.6rem, 4.5vw, 3.2rem);
+        --h2-size:       clamp(1.3rem, 3.2vw, 2.4rem);
+        --h3-size:       clamp(0.95rem, 2vw, 1.4rem);
+        --body-size:     clamp(0.78rem, 1.3vw, 1.05rem);
+        --card-gap:      0.4rem;
+        --card-pad:      0.6rem;
+      }
+    }
+    @media (max-height: 600px) {
+      :root {
+        --slide-padding: clamp(0.5rem, 2vw, 1.5rem);
+        --content-gap:   clamp(0.3rem, 0.8vw, 0.7rem);
+        --title-size:    clamp(1.3rem, 3.8vw, 2.5rem);
+        --body-size:     clamp(0.72rem, 1.1vw, 0.92rem);
+        --card-gap:      0.3rem;
+        --card-pad:      0.5rem;
+      }
+      .nav-dots { display: none; }
+    }
+    @media (max-height: 500px) {
+      :root {
+        --slide-padding: clamp(0.4rem, 1.5vw, 1rem);
+        --title-size:    clamp(1.1rem, 3.2vw, 1.8rem);
+        --h2-size:       clamp(1rem, 2.5vw, 1.5rem);
+      }
+    }
+    @media (max-width: 600px) {
+      :root { --title-size: clamp(1.6rem, 8vw, 2.8rem); }
+      .card-grid, .challenge-2x2, .example-grid { grid-template-columns: 1fr !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+      }
+      html { scroll-behavior: auto; }
+    }
+
+    /* ================================================
+       WEBGL CANVAS
+       ================================================ */
+    #ripple-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ================================================
+       NAVIGATION
+       ================================================ */
+    .slide-counter {
+      position: fixed;
+      bottom: clamp(0.8rem, 2vw, 1.5rem);
+      right: clamp(1rem, 2.5vw, 2rem);
+      z-index: 100;
+      font-family: var(--font-display);
+      font-size: var(--small-size);
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      display: flex;
+      align-items: center;
+      gap: 0.3em;
+    }
+    .slide-counter .current { color: var(--cyan-lt); }
+
+    .nav-dots {
+      position: fixed;
+      left: clamp(0.8rem, 1.5vw, 1.2rem);
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .nav-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--muted);
+      opacity: 0.35;
+      cursor: pointer;
+      transition: all 0.3s var(--ease-expo);
+      border: none; padding: 0;
+    }
+    .nav-dot.active { background: var(--cyan); opacity: 1; transform: scale(1.6); }
+    .nav-dot:hover  { opacity: 0.7; }
+
+    .progress-line {
+      position: fixed;
+      top: 0; left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      z-index: 200;
+      transition: width 0.4s var(--ease-expo);
+      width: 0%;
+    }
+
+    /* ================================================
+       SHARED SLIDE ELEMENTS
+       ================================================ */
+    .section-label {
+      font-family: var(--font-display);
+      font-size: var(--label-size);
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: clamp(0.4rem, 1vw, 0.9rem);
+    }
+    .slide-title {
+      font-family: var(--font-display);
+      font-size: var(--h2-size);
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1.1;
+      margin-bottom: clamp(0.7rem, 1.8vw, 1.6rem);
+    }
+
+    /* ================================================
+       REVEAL ANIMATIONS (CSS fallback — anime overrides when loaded)
+       ================================================ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition:
+        opacity var(--duration) var(--ease-expo),
+        transform var(--duration) var(--ease-expo);
+    }
+    .slide.visible .reveal { opacity: 1; transform: translateY(0); }
+    .slide.visible .reveal:nth-child(1) { transition-delay: 0.05s; }
+    .slide.visible .reveal:nth-child(2) { transition-delay: 0.13s; }
+    .slide.visible .reveal:nth-child(3) { transition-delay: 0.21s; }
+    .slide.visible .reveal:nth-child(4) { transition-delay: 0.29s; }
+    .slide.visible .reveal:nth-child(5) { transition-delay: 0.37s; }
+    .slide.visible .reveal:nth-child(6) { transition-delay: 0.45s; }
+
+    /* When anime.js is active, it owns all reveal animations.
+       Higher specificity keeps elements at initial state so anime
+       can animate from scratch — inline styles set by anime always
+       beat CSS class rules, so the spring animation wins cleanly. */
+    .anime-loaded .reveal {
+      transition: none !important;
+    }
+    .anime-loaded .slide.visible .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+    }
+
+    /* ================================================
+       SLIDE 1 -TITLE
+       ================================================ */
+    .title-slide .slide-content {
+      justify-content: center;
+      padding-left: clamp(2rem, 6vw, 6rem);
+    }
+    .glow-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .slide-content { position: relative; z-index: 1; }
+
+    /* ================================================
+       SLIDE 1 — TITLE LAYOUT (text left, headset right)
+       ================================================ */
+    .title-slide .slide-content {
+      flex-direction: row;
+      align-items: center;
+      gap: clamp(2rem, 5vw, 6rem);
+    }
+    .hero-text-block {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .vr-visual-wrapper {
+      flex: 0 0 auto;
+      width: clamp(180px, 38vw, 460px);
+      height: clamp(200px, 38vh, 380px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ================================================
+       VR HEADSET 3D CAROUSEL
+       ================================================ */
+    .carousel-scene {
+      width: 100%;
+      height: 100%;
+      perspective: 900px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .carousel-track {
+      position: relative;
+      width: 240px;
+      height: 200px;
+      transform-style: preserve-3d;
+      transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .carousel-item {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1s ease, filter 1s ease;
+      backface-visibility: hidden;
+    }
+    .carousel-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    @keyframes vr-float {
+      0%, 100% { transform: translateY(0px) rotate(-1.5deg); }
+      50%       { transform: translateY(-18px) rotate(1.5deg); }
+    }
+    @keyframes lens-pulse {
+      0%, 100% { opacity: 0.5; }
+      50%       { opacity: 1; }
+    }
+    @keyframes led-blink {
+      0%, 90%, 100% { opacity: 1; }
+      95%           { opacity: 0.2; }
+    }
+
+    .vr-headset-float {
+      width: 100%;
+      animation: vr-float 5s ease-in-out infinite;
+      filter:
+        drop-shadow(0 0 18px rgba(124,58,237,0.55))
+        drop-shadow(0 0 50px rgba(6,182,212,0.25));
+    }
+    .vr-headset-svg { width: 100%; height: auto; }
+    .lens-inner { animation: lens-pulse 3s ease-in-out infinite; }
+    .lens-inner-r { animation: lens-pulse 3s ease-in-out infinite 0.4s; }
+    .status-led { animation: led-blink 4s ease-in-out infinite; }
+
+    @media (max-width: 700px) {
+      .title-slide .slide-content { flex-direction: column; }
+      .vr-visual-wrapper { width: clamp(140px, 60vw, 280px); }
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: var(--title-size);
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.0;
+      letter-spacing: -0.02em;
+      margin-bottom: clamp(0.5rem, 1.5vw, 1.2rem);
+    }
+    .hero-title .vr-word {
+      background: linear-gradient(135deg, var(--purple-lt) 0%, var(--cyan-lt) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-name {
+      font-family: var(--font-display);
+      font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: clamp(0.5rem, 1.2vw, 1rem);
+      opacity: 0.9;
+    }
+
+    .hero-subtitle {
+      font-family: var(--font-display);
+      font-size: clamp(0.9rem, 1.6vw, 1.25rem);
+      font-weight: 400;
+      color: var(--cyan-lt);
+      letter-spacing: 0.03em;
+      max-width: 60ch;
+      line-height: 1.5;
+    }
+
+    .hero-subtitle .pink-word { color: var(--pink); }
+
+    /* ================================================
+       SLIDE 2 -CARD GRID
+       ================================================ */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--card-gap);
+      flex: 1;
+      max-height: calc(100% - 4rem);
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: var(--card-pad);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(0.3rem, 0.8vw, 0.6rem);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .card:hover {
+      border-color: rgba(124,58,237,0.4);
+      box-shadow: 0 0 24px rgba(124,58,237,0.12);
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; height: 100%;
+      border-radius: 10px 0 0 10px;
+    }
+    .card.purple-accent::before { background: var(--purple); }
+    .card.cyan-accent::before   { background: var(--cyan); }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: var(--h3-size);
+      font-weight: 700;
+      color: var(--white);
+      padding-left: 0.6rem;
+      line-height: 1.2;
+    }
+    .card-body {
+      font-size: var(--body-size);
+      color: var(--muted);
+      line-height: 1.55;
+      padding-left: 0.6rem;
+      flex: 1;
+    }
+
+    /* ================================================
+       SLIDE 3 -CHALLENGES (2x2 grid, all on one slide)
+       ================================================ */
+    .challenge-2x2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--card-gap);
+      flex: 1;
+      max-height: calc(100% - 4rem);
+    }
+    .challenge-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: var(--card-pad);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(0.25rem, 0.6vw, 0.5rem);
+      position: relative;
+      overflow: hidden;
+    }
+    .challenge-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; height: 100%;
+      border-radius: 10px 0 0 10px;
+    }
+    .challenge-card.purple-accent::before { background: var(--purple); }
+    .challenge-card.cyan-accent::before   { background: var(--cyan); }
+
+    .challenge-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding-left: 0.5rem;
+    }
+    .challenge-num {
+      width: clamp(1.6rem, 2.8vw, 2.2rem);
+      height: clamp(1.6rem, 2.8vw, 2.2rem);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: clamp(0.65rem, 1vw, 0.9rem);
+      font-weight: 700;
+      color: var(--white);
+      flex-shrink: 0;
+    }
+    .challenge-num.purple-num { background: var(--purple); }
+    .challenge-num.cyan-num   { background: var(--cyan); }
+
+    .challenge-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.15rem, 2.1vw, 1.55rem);
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1.2;
+    }
+    .challenge-body {
+      font-size: clamp(0.95rem, 1.5vw, 1.22rem);
+      color: var(--muted);
+      line-height: 1.55;
+      padding-left: 0.5rem;
+      flex: 0 0 auto;
+    }
+    .challenge-personal {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.4rem;
+      padding-left: 0.5rem;
+    }
+    .challenge-personal span {
+      font-size: clamp(1rem, 1.4vw, 1.18rem);
+      color: var(--pink);
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    /* ================================================
+       SLIDE 4 -EXAMPLES WITH VIDEO
+       ================================================ */
+    #s4 .section-label {
+      font-size: clamp(0.7rem, 1vw, 0.95rem);
+      margin-bottom: clamp(0.55rem, 1.2vw, 1.1rem);
+    }
+    #s4 .slide-title {
+      font-size: clamp(1.9rem, 4.8vw, 3.5rem);
+      margin-bottom: clamp(0.85rem, 2.2vw, 1.9rem);
+    }
+
+    #s5 .section-label {
+      font-size: clamp(0.7rem, 1vw, 0.95rem);
+      margin-bottom: clamp(0.55rem, 1.2vw, 1.1rem);
+    }
+    #s5 .slide-title {
+      font-size: clamp(1.9rem, 4.8vw, 3.5rem);
+      margin-bottom: clamp(0.85rem, 2.2vw, 1.9rem);
+    }
+
+    .example-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--card-gap);
+      flex: 1;
+      min-height: 0;
+    }
+    .example-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .example-card.purple-card { border-top: 3px solid var(--purple); }
+    .example-card.cyan-card   { border-top: 3px solid var(--cyan); }
+
+    /* YouTube thumbnail -shows preview, click opens video in new tab */
+    .video-wrapper {
+      width: 100%;
+      height: clamp(130px, 22vh, 200px);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    .video-thumb {
+      display: block;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .video-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.35s ease;
+    }
+    .video-thumb:hover img { transform: scale(1.04); }
+    .play-btn {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: clamp(44px, 6vw, 62px);
+      height: auto;
+      opacity: 0.88;
+      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.6));
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+    .video-thumb:hover .play-btn {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    .example-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .example-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: clamp(0.5rem, 1vw, 0.85rem) var(--card-pad);
+      border-bottom: 1px solid var(--sep);
+      flex-shrink: 0;
+    }
+
+    .example-badge {
+      font-family: var(--font-display);
+      font-size: clamp(0.5rem, 0.75vw, 0.65rem);
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 0.2em 0.6em;
+      border-radius: 4px;
+    }
+    .badge-purple { background: rgba(124,58,237,0.25); color: var(--purple-lt); border: 1px solid rgba(124,58,237,0.3); }
+    .badge-cyan   { background: rgba(6,182,212,0.2); color: var(--cyan-lt); border: 1px solid rgba(6,182,212,0.3); }
+    .badge-red    { background: rgba(239,68,68,0.2); color: var(--red-lt); border: 1px solid rgba(239,68,68,0.3); }
+    .example-card.red-card { border-top: 3px solid var(--red); }
+
+    .example-game-name {
+      font-family: var(--font-display);
+      font-size: var(--h3-size);
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .example-card-body {
+      padding: clamp(0.5rem, 1vw, 0.9rem) var(--card-pad);
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(0.3rem, 0.6vw, 0.6rem);
+    }
+
+    .example-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(0.22rem, 0.5vw, 0.42rem);
+      flex: 1;
+    }
+    .example-bullets li {
+      font-size: clamp(0.7rem, 1.1vw, 0.88rem);
+      color: var(--muted);
+      line-height: 1.4;
+      padding-left: 0.9rem;
+      position: relative;
+    }
+    .example-bullets li::before {
+      content: '/';
+      position: absolute;
+      left: 0;
+      color: var(--purple-lt);
+      font-weight: 600;
+      font-size: 0.9em;
+    }
+    .example-card.cyan-card .example-bullets li::before { color: var(--cyan-lt); }
+
+    .example-summary {
+      font-size: clamp(0.62rem, 0.9vw, 0.78rem);
+      color: var(--cyan-lt);
+      font-style: italic;
+      line-height: 1.4;
+      border-top: 1px solid var(--sep);
+      padding-top: clamp(0.25rem, 0.5vw, 0.45rem);
+      flex-shrink: 0;
+    }
+    .example-card.cyan-card .example-summary { color: var(--purple-lt); }
+
+    /* ================================================
+       SLIDE 5 -FUTURE
+       ================================================ */
+    .trend-list { display: flex; flex-direction: column; gap: 0; flex: 1; }
+    .trend-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: clamp(0.8rem, 1.5vw, 1.4rem);
+      align-items: center;
+      padding: clamp(0.8rem, 1.8vw, 1.5rem) 0;
+      border-bottom: 1px solid var(--sep);
+    }
+    .trend-row:last-child { border-bottom: none; }
+    .trend-icon { text-align: center; width: clamp(2.5rem, 4vw, 3.5rem); display: flex; align-items: center; justify-content: center; }
+    .trend-icon img { width: clamp(2rem, 3.5vw, 3rem); height: clamp(2rem, 3.5vw, 3rem); object-fit: contain; }
+    .icon-purple { filter: invert(29%) sepia(96%) saturate(1300%) hue-rotate(247deg) brightness(90%); }
+    .icon-cyan { filter: invert(55%) sepia(77%) saturate(890%) hue-rotate(163deg) brightness(97%); }
+    .trend-info { display: flex; flex-direction: column; gap: clamp(0.2rem, 0.4vw, 0.35rem); }
+    .trend-title { font-family: var(--font-display); font-size: var(--h3-size); font-weight: 700; color: var(--white); }
+    .trend-body  { font-size: var(--body-size); color: var(--muted); line-height: 1.5; }
+
+    /* ================================================
+       SLIDE 6 -CONCLUSION
+       ================================================ */
+    .takeaway-list { display: flex; flex-direction: column; gap: var(--card-gap); flex: 1; }
+    .takeaway-row {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: clamp(0.7rem, 1.4vw, 1.2rem) var(--card-pad);
+      display: flex;
+      align-items: center;
+      gap: var(--card-gap);
+      transition: border-color 0.3s;
+    }
+    .takeaway-row:hover { border-color: rgba(124,58,237,0.35); }
+    .takeaway-num {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 3vw, 2.6rem);
+      font-weight: 800;
+      line-height: 1;
+      flex-shrink: 0;
+      width: clamp(2rem, 3.5vw, 3rem);
+    }
+    .num-purple { color: var(--purple-lt); }
+    .num-cyan   { color: var(--cyan-lt); }
+    .takeaway-text { font-size: var(--body-size); color: var(--white); line-height: 1.5; }
+    .takeaway-text strong { font-weight: 600; }
+
+    .questions-line {
+      margin-top: clamp(0.5rem, 1.2vw, 1rem);
+      padding-top: clamp(0.5rem, 1.2vw, 1rem);
+      border-top: 1px solid var(--sep);
+      font-family: var(--font-display);
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      font-weight: 700;
+      color: var(--cyan-lt);
+      text-align: center;
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="ripple-canvas"></canvas>
+  <div class="progress-line" id="progress-line"></div>
+  <div class="slide-counter" aria-live="polite">
+    <span class="current" id="cur">1</span>
+    <span style="color:var(--sep)">/</span>
+    <span id="tot">7</span>
+  </div>
+  <nav id="nav-dots" class="nav-dots" aria-label="Slaidide navigatsioon"></nav>
+
+  <!-- ================================================
+       SLIDE 1 -TITLE
+       ================================================ -->
+  <section class="slide title-slide" id="s1" aria-label="Tiitlslaid">
+    <div class="glow-blob" style="width:500px;height:400px;top:-120px;left:-80px;background:rgba(124,58,237,0.12)"></div>
+    <div class="glow-blob" style="width:400px;height:350px;bottom:-60px;right:-60px;background:rgba(6,182,212,0.1)"></div>
+
+    <div class="slide-content">
+      <div class="hero-text-block">
+        <h1 class="hero-title reveal">
+          <span class="vr-word">VR</span> Kasutaja&shy;kogemus
+        </h1>
+        <p class="hero-name reveal">Martin</p>
+        <p class="hero-subtitle reveal">7 aastat kogemust VR-iga, disaineri pilguga ja <span class="pink-word">kasutaja kogemusest</span></p>
+      </div>
+
+      <div class="vr-visual-wrapper reveal">
+        <div class="carousel-scene">
+          <div class="carousel-track" id="carouselTrack">
+            <div class="carousel-item" style="transform: rotateY(0deg) translateZ(210px)">
+              <img src="metaquest3.png" alt="Meta Quest 3"/>
+            </div>
+            <div class="carousel-item" style="transform: rotateY(72deg) translateZ(210px)">
+              <img src="quest.png" alt="Oculus Quest 2"/>
+            </div>
+            <div class="carousel-item" style="transform: rotateY(144deg) translateZ(210px)">
+              <img src="index.png" alt="Valve Index"/>
+            </div>
+            <div class="carousel-item" style="transform: rotateY(216deg) translateZ(210px)">
+              <img src="rift.png" alt="Oculus Rift S"/>
+            </div>
+            <div class="carousel-item" style="transform: rotateY(288deg) translateZ(210px)">
+              <img src="steamframe.png" alt="Steam VR headset"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       SLIDE 2 -MIKS VR UX ON TEISTSUGUNE
+       ================================================ -->
+  <section class="slide" id="s2" aria-label="Kontekst">
+    <div class="glow-blob" style="width:350px;height:350px;top:-80px;right:-60px;background:rgba(124,58,237,0.1)"></div>
+
+    <div class="slide-content">
+      <p class="section-label reveal">01 · KONTEKST</p>
+      <h2 class="slide-title reveal">Miks VR UX on teistsugune?</h2>
+
+      <div class="card-grid reveal">
+        <div class="card purple-accent">
+          <h3 class="card-title">Kehalisus</h3>
+          <p class="card-body">Sa ei vaata enam ekraani, vaid oled ise keskkonnas sees. Keha asend, tasakaal ja liikumine mõjutavad otseselt seda, kuidas kogemus tundub. Disain peab arvestama päris inimese kehaga, mitte ainult silmadega.</p>
+        </div>
+        <div class="card cyan-accent">
+          <h3 class="card-title">Ruumiline UI</h3>
+          <p class="card-body">Kõik elemendid eksisteerivad ruumis. Nende kaugus, suurus ja nurk mõjutavad loetavust ja mugavust. Halb paigutus väsitab kiiresti, hea paigutus kaob peaaegu märkamatult taustale.</p>
+        </div>
+        <div class="card cyan-accent">
+          <h3 class="card-title">Puudub klaviatuur ja hiir</h3>
+          <p class="card-body">Sisend ei ole enam täpne ja staatiline. Kasutame kontrollereid, käsi või pilku. See tähendab, et iga interaktsioon peab olema lihtne, andestav ja loogiline.</p>
+        </div>
+        <div class="card purple-accent">
+          <h3 class="card-title">Kohalolek on eesmärk</h3>
+          <p class="card-body">Hea VR kogemus tekitab tunde, et oled päriselt seal. Iga halb UI otsus võib selle tunde kohe lõhkuda. Disaini eesmärk on hoida kasutaja selles seisundis nii kaua kui võimalik.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       SLIDE 3 -KÕIK 4 VÄLJAKUTSET (2x2 grid)
+       ================================================ -->
+  <section class="slide" id="s3" aria-label="Väljakutsed">
+    <div class="glow-blob" style="width:400px;height:400px;bottom:-100px;left:-100px;background:rgba(6,182,212,0.09)"></div>
+
+    <div class="slide-content">
+      <p class="section-label reveal">02 · VÄLJAKUTSED</p>
+      <h2 class="slide-title reveal">Peamised UX väljakutsed</h2>
+
+      <div class="challenge-2x2 reveal">
+
+        <div class="challenge-card purple-accent">
+          <div class="challenge-card-header">
+            <div class="challenge-num purple-num">01</div>
+            <h3 class="challenge-title">Sissejuhatus ja learning curve</h3>
+          </div>
+          <p class="challenge-body">Uus kasutaja satub täiesti uude olukorda. Ta ei tea, kuhu vaadata ega mida teha. Esimesed minutid määravad, kas kogemus tundub turvaline ja huvitav või segadust tekitav.</p>
+          <div class="challenge-personal">
+            <span>Olen näinud, kuidas inimesed võtavad peakomplekti ära lihtsalt seetõttu, et nad ei saanud aru, mis toimub.</span>
+          </div>
+        </div>
+
+        <div class="challenge-card purple-accent">
+          <div class="challenge-card-header">
+            <div class="challenge-num purple-num">02</div>
+            <h3 class="challenge-title">Motion Sickness</h3>
+          </div>
+          <p class="challenge-body">Keha ja silmad ei pruugi olla sünkroonis. See võib tekitada iiveldust või ebamugavust. Liikumisviiside valik on kriitiline ja sageli tuleb anda kasutajale kontroll selle üle, kuidas ta liigub. Võimalused on näiteks teleportation ja smooth locomotion.</p>
+          <div class="challenge-personal">
+            <span>Mul endal oli alguses piir umbes 20 minutit, pikemalt lihtsalt ei olnud hea olla.</span>
+          </div>
+        </div>
+
+        <div class="challenge-card cyan-accent">
+          <div class="challenge-card-header">
+            <div class="challenge-num cyan-num">03</div>
+            <h3 class="challenge-title">Sisendite disain</h3>
+          </div>
+          <p class="challenge-body">Erinevad sisendviisid käituvad erinevalt. Kontroller on täpne, käed on loomulikud, pilk on kiire. Üks lahendus ei sobi kõigile olukordadele, seega peab disain olema paindlik ja läbimõeldud.</p>
+          <div class="challenge-personal">
+            <span>Hand tracking tundub alguses väga intuitiivne, aga pikema kasutuse järel tekib väsimus.</span>
+          </div>
+        </div>
+
+        <div class="challenge-card cyan-accent">
+          <div class="challenge-card-header">
+            <div class="challenge-num cyan-num">04</div>
+            <h3 class="challenge-title">UI paigutus 3D ruumis</h3>
+          </div>
+          <p class="challenge-body">Kus menüü asub ja kuidas see ilmub, mõjutab kogu kogemust. Liiga kõrgel või liiga lähedal olev UI muutub suhteliselt kähku ebamugavaks.</p>
+          <div class="challenge-personal">
+            <span>Olen ise kogenud olukordi, kus halb menüü paigutus pani kaela valutama, mis rikub kogu kogemuse.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       SLIDE 4 -HEA VR UX NÄITED
+       ================================================ -->
+  <section class="slide" id="s4" aria-label="Näited">
+    <div class="glow-blob" style="width:500px;height:300px;top:-60px;left:30%;background:rgba(6,182,212,0.08)"></div>
+
+    <div class="slide-content">
+      <p class="section-label reveal">03 · NÄITED</p>
+      <h2 class="slide-title reveal">Hea VR UX näited</h2>
+
+      <div class="example-grid reveal">
+
+        <!-- Half-Life: Alyx -->
+        <div class="example-card purple-card">
+          <div class="video-wrapper">
+            <a class="video-thumb" href="https://www.youtube.com/watch?v=6yQKLp0Uc70" target="_blank" rel="noopener" aria-label="Vaata Half-Life: Alyx gameplay videot">
+              <img src="https://img.youtube.com/vi/6yQKLp0Uc70/maxresdefault.jpg" alt="Half-Life: Alyx gameplay"/>
+              <svg class="play-btn" viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M66.52,7.74C65.7,4.72,63.28,2.3,60.26,1.48C54.96,0,34,0,34,0S13.04,0,7.74,1.48C4.72,2.3,2.3,4.72,1.48,7.74C0,13.04,0,24,0,24S0,34.96,1.48,40.26C2.3,43.28,4.72,45.7,7.74,46.52C13.04,48,34,48,34,48S54.96,48,60.26,46.52C63.28,45.7,65.7,43.28,66.52,40.26C68,34.96,68,24,68,24S68,13.04,66.52,7.74Z" fill="#FF0000"/>
+                <path d="M45,24L27,14V34L45,24Z" fill="#FFFFFF"/>
+              </svg>
+            </a>
+          </div>
+          <div class="example-info">
+            <div class="example-badge-row">
+              <span class="example-badge badge-purple">Mängimine</span>
+              <span class="example-game-name">Half-Life: Alyx</span>
+            </div>
+            <div class="example-card-body">
+              <ul class="example-bullets">
+                <li>Inventory on seotud maailmaga ja tundub loomulik</li>
+                <li>Kasutaja saab valida liikumisviisi vastavalt oma eelistusele</li>
+                <li>Interaktsioonid on füüsilised ja arusaadavad</li>
+                <li>Õpetamine toimub läbi mängimise, mitte eraldi juhendina</li>
+              </ul>
+              <p class="example-summary">Kogu kogemus on väga sujuv, mis aitab säilitada kohaloleku tunnet pikema aja jooksul.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gravity Sketch -->
+        <div class="example-card cyan-card">
+          <div class="video-wrapper">
+            <a class="video-thumb" href="https://www.youtube.com/watch?v=Q08knbCM23I" target="_blank" rel="noopener" aria-label="Vaata Gravity Sketch VR videot">
+              <img src="https://img.youtube.com/vi/Q08knbCM23I/maxresdefault.jpg" alt="Gravity Sketch VR design"/>
+              <svg class="play-btn" viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M66.52,7.74C65.7,4.72,63.28,2.3,60.26,1.48C54.96,0,34,0,34,0S13.04,0,7.74,1.48C4.72,2.3,2.3,4.72,1.48,7.74C0,13.04,0,24,0,24S0,34.96,1.48,40.26C2.3,43.28,4.72,45.7,7.74,46.52C13.04,48,34,48,34,48S54.96,48,60.26,46.52C63.28,45.7,65.7,43.28,66.52,40.26C68,34.96,68,24,68,24S68,13.04,66.52,7.74Z" fill="#FF0000"/>
+                <path d="M45,24L27,14V34L45,24Z" fill="#FFFFFF"/>
+              </svg>
+            </a>
+          </div>
+          <div class="example-info">
+            <div class="example-badge-row">
+              <span class="example-badge badge-cyan">Productivity</span>
+              <span class="example-game-name">Gravity Sketch</span>
+            </div>
+            <div class="example-card-body">
+              <ul class="example-bullets">
+                <li>3D modelleerimine tundub nagu päris ruumis joonistamine</li>
+                <li>Tööriistad ilmuvad sinna, kus kasutaja neid vajab</li>
+                <li>Ekraan ei ole täis menüüsid, ruum jääb avatuks</li>
+                <li>Käte kasutamine muudab töö voolavamaks</li>
+              </ul>
+              <p class="example-summary">Hea näide sellest, kuidas VR ei pea copyma 2D tarkvara, vaid võib luua täiesti uue tööviisi.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       SLIDE 5 -HALB VR UX NÄITED
+       ================================================ -->
+  <section class="slide" id="s5" aria-label="Halb UX">
+    <div class="glow-blob" style="width:500px;height:300px;top:-60px;left:30%;background:rgba(239,68,68,0.07)"></div>
+
+    <div class="slide-content">
+      <p class="section-label reveal">04 · HALB UX</p>
+      <h2 class="slide-title reveal">Halb VR UX praktikas</h2>
+
+      <div class="example-grid reveal">
+
+        <!-- Fallout 4 VR -->
+        <div class="example-card red-card">
+          <div class="video-wrapper">
+            <a class="video-thumb" href="https://www.youtube.com/watch?v=n4NdMrutLu4" target="_blank" rel="noopener" aria-label="Vaata Fallout 4 VR halva UI videot">
+              <img src="https://img.youtube.com/vi/n4NdMrutLu4/maxresdefault.jpg" alt="Fallout 4 VR bad UI"/>
+              <svg class="play-btn" viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M66.52,7.74C65.7,4.72,63.28,2.3,60.26,1.48C54.96,0,34,0,34,0S13.04,0,7.74,1.48C4.72,2.3,2.3,4.72,1.48,7.74C0,13.04,0,24,0,24S0,34.96,1.48,40.26C2.3,43.28,4.72,45.7,7.74,46.52C13.04,48,34,48,34,48S54.96,48,60.26,46.52C63.28,45.7,65.7,43.28,66.52,40.26C68,34.96,68,24,68,24S68,13.04,66.52,7.74Z" fill="#FF0000"/>
+                <path d="M45,24L27,14V34L45,24Z" fill="#FFFFFF"/>
+              </svg>
+            </a>
+          </div>
+          <div class="example-info">
+            <div class="example-badge-row">
+              <span class="example-badge badge-red">UI paigutus</span>
+              <span class="example-game-name">Fallout 4 VR</span>
+            </div>
+            <div class="example-card-body">
+              <ul class="example-bullets">
+                <li>2D menüüd tõsteti VR-i ilma suuremate muudatusteta</li>
+                <li>Inventory ja kaart hõljuvad silme ees nagu eraldi kiht, mitte osa maailmast</li>
+                <li>Sügavustunnet peaaegu ei ole -UI tundub nagu kleebis silmade ees</li>
+                <li>Paljud mängijad jõudsid lõpuks modde paigaldama, et liides oleks üldse mugav</li>
+              </ul>
+              <p class="example-summary">Hea näide olukorrast, kus VR tuli projekti hiljem juurde. Kui kogemus ei ole algusest peale VR-i jaoks läbi mõeldud, jääb see kohe tunda.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resident Evil 7 VR -->
+        <div class="example-card red-card">
+          <div class="video-wrapper">
+            <a class="video-thumb" href="https://www.youtube.com/watch?v=2pOOW1nt5ss" target="_blank" rel="noopener" aria-label="Vaata Resident Evil 7 VR motion sickness videot">
+              <img src="https://img.youtube.com/vi/2pOOW1nt5ss/maxresdefault.jpg" alt="Resident Evil 7 VR motion sickness"/>
+              <svg class="play-btn" viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M66.52,7.74C65.7,4.72,63.28,2.3,60.26,1.48C54.96,0,34,0,34,0S13.04,0,7.74,1.48C4.72,2.3,2.3,4.72,1.48,7.74C0,13.04,0,24,0,24S0,34.96,1.48,40.26C2.3,43.28,4.72,45.7,7.74,46.52C13.04,48,34,48,34,48S54.96,48,60.26,46.52C63.28,45.7,65.7,43.28,66.52,40.26C68,34.96,68,24,68,24S68,13.04,66.52,7.74Z" fill="#FF0000"/>
+                <path d="M45,24L27,14V34L45,24Z" fill="#FFFFFF"/>
+              </svg>
+            </a>
+          </div>
+          <div class="example-info">
+            <div class="example-badge-row">
+              <span class="example-badge badge-red">Motion sickness</span>
+              <span class="example-game-name">Resident Evil 7 VR</span>
+            </div>
+            <div class="example-card-body">
+              <ul class="example-bullets">
+                <li>Smooth locomotion ilma mugavusvalikuteta</li>
+                <li>Paljud mängijad ei suutnud rohkem kui 20 minutit mängida</li>
+                <li>Puudus teleportation või liikumiskiiruse kontroll</li>
+                <li>Hirmu ja iivelduse vahel on väga õhuke piir</li>
+              </ul>
+              <p class="example-summary">Hea näide sellest, kuidas isegi suurepärane mäng võib VR-is ebaõnnestuda, kui mugavus pole prioriteet.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       SLIDE 6 -TULEVIK
+       ================================================ -->
+  <section class="slide" id="s6b" aria-label="Tulevik">
+    <div class="glow-blob" style="width:450px;height:450px;right:-100px;top:50%;transform:translateY(-50%);background:rgba(124,58,237,0.1)"></div>
+
+    <div class="slide-content">
+      <p class="section-label reveal">05 · TULEVIK</p>
+      <h2 class="slide-title reveal">Kuhu see liigub?</h2>
+
+      <div class="trend-list reveal">
+        <div class="trend-row">
+          <div class="trend-icon"><img src="hand.png" class="icon-purple" alt="hand tracking"></div>
+          <div class="trend-info">
+            <h3 class="trend-title">Hand tracking</h3>
+            <p class="trend-body">Käed muutuvad peamiseks sisendiks. See vähendab barjääri uutele kasutajatele ja teeb kogemuse loomulikumaks. Samas vajab see veel palju täpsustamist.</p>
+          </div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-icon"><img src="globe.png" class="icon-cyan" alt="mixed reality"></div>
+          <div class="trend-info">
+            <h3 class="trend-title">Segareaalsus ehk mixed/augmented reality</h3>
+            <p class="trend-body">Virtuaalne ja füüsiline maailm hakkavad segunema. See avab täiesti uued võimalused, aga toob kaasa küsimusi, kuidas paigutada digitaalseid elemente päris ruumi nii, et need tunduksid õiged.</p>
+          </div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-icon"><img src="robot.png" class="icon-purple" alt="AI"></div>
+          <div class="trend-info">
+            <h3 class="trend-title">AI juhitud liidesed</h3>
+            <p class="trend-body">Süsteemid hakkavad rohkem aru saama ja õppima kasutajast. UI võib kohanduda vastavalt olukorrale, mis vähendab vajadust keeruliste menüüde järele ja muudab kogemuse sujuvamaks.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       SLIDE 7 -KOKKUVÕTE
+       ================================================ -->
+  <section class="slide" id="s7" aria-label="Kokkuvõte">
+    <div class="glow-blob" style="width:500px;height:400px;bottom:-80px;left:-80px;background:rgba(124,58,237,0.1)"></div>
+    <div class="glow-blob" style="width:350px;height:350px;top:-60px;right:-40px;background:rgba(6,182,212,0.09)"></div>
+
+    <div class="slide-content">
+      <p class="section-label reveal">06 · KOKKUVÕTE</p>
+      <h2 class="slide-title reveal">3 asja, mida meeles pidada</h2>
+
+      <div class="takeaway-list">
+        <div class="takeaway-row reveal">
+          <span class="takeaway-num num-cyan">1</span>
+          <p class="takeaway-text">VR kogemus algab kehast. <strong>Disain peab arvestama liikumise, tasakaalu ja mugavusega.</strong></p>
+        </div>
+        <div class="takeaway-row reveal">
+          <span class="takeaway-num num-purple">2</span>
+          <p class="takeaway-text">Kohaloleku tunne on kõige olulisem. <strong>Iga detail kas toetab seda või segab seda.</strong></p>
+        </div>
+        <div class="takeaway-row reveal">
+          <span class="takeaway-num num-cyan">3</span>
+          <p class="takeaway-text">Parim viis VR UX-i mõista on seda ise kogeda. <strong>Teooria aitab, aga päris tunnetus tekib ainult kasutades.</strong></p>
+        </div>
+      </div>
+
+      <p class="questions-line reveal">Aitäh!</p>
+    </div>
+  </section>
+
+  <script src="node_modules/animejs/dist/bundles/anime.umd.min.js"></script>
+  <script>
+    /* ================================================
+       RIPPLE GRID -Raw WebGL (no dependencies)
+       ================================================ */
+    (function () {
+      const canvas = document.getElementById('ripple-canvas');
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      const CFG = {
+        gridColor:            [124/255, 58/255, 237/255],
+        rippleIntensity:      0.04,
+        gridSize:             8.0,
+        gridThickness:        18.0,
+        fadeDistance:         1.5,
+        vignetteStrength:     2.0,
+        glowIntensity:        0.1,
+        opacity:              0.35,
+        gridRotation:         0,
+        mouseInteractionRadius: 1.2,
+      };
+
+      const gl = canvas.getContext('webgl', { alpha: true, antialias: false })
+               || canvas.getContext('experimental-webgl', { alpha: true });
+      if (!gl) return;
+
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+      const vertSrc = `
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+          vUv = position * 0.5 + 0.5;
+          gl_Position = vec4(position, 0.0, 1.0);
+        }`;
+
+      const fragSrc = `
+        precision highp float;
+        uniform float  iTime;
+        uniform vec2   iResolution;
+        uniform vec3   gridColor;
+        uniform float  rippleIntensity;
+        uniform float  gridSize;
+        uniform float  gridThickness;
+        uniform float  fadeDistance;
+        uniform float  vignetteStrength;
+        uniform float  glowIntensity;
+        uniform float  opacity;
+        uniform float  gridRotation;
+        uniform vec2   mousePosition;
+        uniform float  mouseInfluence;
+        uniform float  mouseInteractionRadius;
+        varying vec2   vUv;
+
+        const float pi = 3.141592;
+
+        mat2 rotate(float angle) {
+          float s = sin(angle); float c = cos(angle);
+          return mat2(c, -s, s, c);
+        }
+
+        void main() {
+          vec2 uv = vUv * 2.0 - 1.0;
+          uv.x *= iResolution.x / iResolution.y;
+
+          if (gridRotation != 0.0) {
+            uv = rotate(gridRotation * pi / 180.0) * uv;
+          }
+
+          float dist = length(uv);
+          float func = sin(pi * (iTime - dist));
+          vec2 rippleUv = uv + uv * func * rippleIntensity;
+
+          if (mouseInfluence > 0.0) {
+            vec2 mouseUv = (mousePosition * 2.0 - 1.0);
+            mouseUv.x *= iResolution.x / iResolution.y;
+            float mouseDist = length(uv - mouseUv);
+            float influence = mouseInfluence * exp(-mouseDist * mouseDist /
+                              (mouseInteractionRadius * mouseInteractionRadius));
+            float mouseWave = sin(pi * (iTime * 2.0 - mouseDist * 3.0)) * influence;
+            rippleUv += normalize(uv - mouseUv) * mouseWave * rippleIntensity * 0.3;
+          }
+
+          vec2 a = sin(gridSize * 0.5 * pi * rippleUv - pi / 2.0);
+          vec2 b = abs(a);
+          float aaWidth = 0.5;
+          vec2 smoothB = vec2(
+            smoothstep(0.0, aaWidth, b.x),
+            smoothstep(0.0, aaWidth, b.y)
+          );
+
+          vec3 color = vec3(0.0);
+          color += exp(-gridThickness * smoothB.x * (0.8 + 0.5 * sin(pi * iTime)));
+          color += exp(-gridThickness * smoothB.y);
+          color += 0.5 * exp(-(gridThickness / 4.0) * sin(smoothB.x));
+          color += 0.5 * exp(-(gridThickness / 3.0) * smoothB.y);
+
+          if (glowIntensity > 0.0) {
+            color += glowIntensity * exp(-gridThickness * 0.5 * smoothB.x);
+            color += glowIntensity * exp(-gridThickness * 0.5 * smoothB.y);
+          }
+
+          float ddd = exp(-2.0 * clamp(pow(dist, fadeDistance), 0.0, 1.0));
+          vec2 vignetteCoords = vUv - 0.5;
+          float vignette = 1.0 - pow(length(vignetteCoords) * 2.0, vignetteStrength);
+          vignette = clamp(vignette, 0.0, 1.0);
+
+          float finalFade = ddd * vignette;
+          float alpha = length(color) * finalFade * opacity;
+          gl_FragColor = vec4(color * gridColor * finalFade * opacity, alpha);
+        }`;
+
+      function compileShader(type, src) {
+        const sh = gl.createShader(type);
+        gl.shaderSource(sh, src);
+        gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+          console.error('Shader error:', gl.getShaderInfoLog(sh));
+          return null;
+        }
+        return sh;
+      }
+
+      const vs = compileShader(gl.VERTEX_SHADER, vertSrc);
+      const fs = compileShader(gl.FRAGMENT_SHADER, fragSrc);
+      if (!vs || !fs) return;
+
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+      gl.useProgram(prog);
+
+      const vbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+
+      const posLoc = gl.getAttribLocation(prog, 'position');
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+      const U = {};
+      ['iTime','iResolution','gridColor','rippleIntensity','gridSize','gridThickness',
+       'fadeDistance','vignetteStrength','glowIntensity','opacity','gridRotation',
+       'mousePosition','mouseInfluence','mouseInteractionRadius'].forEach(n => {
+        U[n] = gl.getUniformLocation(prog, n);
+      });
+
+      gl.uniform3fv(U.gridColor, CFG.gridColor);
+      gl.uniform1f(U.rippleIntensity, CFG.rippleIntensity);
+      gl.uniform1f(U.gridSize, CFG.gridSize);
+      gl.uniform1f(U.gridThickness, CFG.gridThickness);
+      gl.uniform1f(U.fadeDistance, CFG.fadeDistance);
+      gl.uniform1f(U.vignetteStrength, CFG.vignetteStrength);
+      gl.uniform1f(U.glowIntensity, CFG.glowIntensity);
+      gl.uniform1f(U.opacity, CFG.opacity);
+      gl.uniform1f(U.gridRotation, CFG.gridRotation);
+      gl.uniform1f(U.mouseInteractionRadius, CFG.mouseInteractionRadius);
+      gl.uniform2f(U.mousePosition, 0.5, 0.5);
+      gl.uniform1f(U.mouseInfluence, 0.3);
+
+      let mx = 0.5, my = 0.5, tmx = 0.5, tmy = 0.5;
+      let mInf = 0.3, tInf = 0.3;
+
+      document.addEventListener('mousemove', e => {
+        tmx = e.clientX / window.innerWidth;
+        tmy = 1.0 - (e.clientY / window.innerHeight);
+        tInf = 1.0;
+      });
+      document.addEventListener('mouseleave', () => { tInf = 0.2; });
+
+      function resize() {
+        const w = window.innerWidth, h = window.innerHeight;
+        canvas.width  = w * dpr; canvas.height = h * dpr;
+        canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.uniform2f(U.iResolution, canvas.width, canvas.height);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      const t0 = performance.now();
+      function frame(now) {
+        gl.uniform1f(U.iTime, (now - t0) * 0.001);
+        mx += (tmx - mx) * 0.08; my += (tmy - my) * 0.08;
+        mInf += (tInf - mInf) * 0.05;
+        gl.uniform2f(U.mousePosition, mx, my);
+        gl.uniform1f(U.mouseInfluence, mInf);
+        gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    })();
+
+    /* ================================================
+       SLIDE PRESENTATION CONTROLLER
+       ================================================ */
+    class SlidePresentation {
+      constructor() {
+        this.slides  = Array.from(document.querySelectorAll('.slide'));
+        this.current = 0;
+        this.total   = this.slides.length;
+
+        document.getElementById('tot').textContent = this.total;
+        this.buildNavDots();
+        this.setupIntersectionObserver();
+        this.setupKeyboard();
+        this.setupWheel();
+        this.setupTouch();
+      }
+
+      buildNavDots() {
+        const nav = document.getElementById('nav-dots');
+        nav.innerHTML = '';
+        this.dots = this.slides.map((_, i) => {
+          const btn = document.createElement('button');
+          btn.className = 'nav-dot' + (i === 0 ? ' active' : '');
+          btn.setAttribute('aria-label', `Slaid ${i + 1}`);
+          btn.addEventListener('click', () => this.goTo(i));
+          nav.appendChild(btn);
+          return btn;
+        });
+      }
+
+      setupIntersectionObserver() {
+        const io = new IntersectionObserver(entries => {
+          entries.forEach(e => {
+            if (e.isIntersecting) {
+              e.target.classList.add('visible');
+              const idx = this.slides.indexOf(e.target);
+              if (idx !== -1) this.updateUI(idx);
+            }
+          });
+        }, { threshold: 0.5 });
+        this.slides.forEach(s => io.observe(s));
+      }
+
+      updateUI(idx) {
+        this.current = idx;
+        document.getElementById('cur').textContent = idx + 1;
+        const pct = this.total > 1 ? (idx / (this.total - 1)) * 100 : 100;
+        document.getElementById('progress-line').style.width = pct + '%';
+        this.dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+
+      goTo(idx) {
+        idx = Math.max(0, Math.min(this.total - 1, idx));
+        this.slides[idx].scrollIntoView({ behavior: 'smooth' });
+      }
+
+      setupKeyboard() {
+        document.addEventListener('keydown', e => {
+          if (['ArrowDown','ArrowRight','Space','PageDown'].includes(e.code)) {
+            e.preventDefault(); this.goTo(this.current + 1);
+          } else if (['ArrowUp','ArrowLeft','PageUp'].includes(e.code)) {
+            e.preventDefault(); this.goTo(this.current - 1);
+          }
+        });
+      }
+
+      setupWheel() {
+        let last = 0;
+        document.addEventListener('wheel', e => {
+          const now = Date.now();
+          if (now - last < 600) return;
+          last = now;
+          this.goTo(this.current + (e.deltaY > 0 ? 1 : -1));
+        }, { passive: true });
+      }
+
+      setupTouch() {
+        let startY = 0;
+        document.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', e => {
+          const dy = startY - e.changedTouches[0].clientY;
+          if (Math.abs(dy) > 50) this.goTo(this.current + (dy > 0 ? 1 : -1));
+        }, { passive: true });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => new SlidePresentation());
+
+    /* ================================================
+       ANIME.JS — CAROUSEL + SLIDE ENTRANCES
+       ================================================ */
+    (function() {
+      if (!window.anime) return;
+      const { animate, spring, stagger } = window.anime;
+
+      /* --- CAROUSEL: spring-physics rotation --- */
+      const track = document.getElementById('carouselTrack');
+      if (track) {
+        const items = Array.from(track.querySelectorAll('.carousel-item'));
+        const N     = items.length;
+        const step  = 360 / N;
+        let current = 0;
+        const state = { angle: 0 };
+
+        track.style.transition = 'none';
+        items.forEach(el => { el.style.transition = 'none'; });
+
+        function paintItems(active) {
+          items.forEach((item, i) => {
+            const rel      = ((i - active) % N + N) % N;
+            const isActive = rel === 0;
+            const isSide   = rel === 1 || rel === N - 1;
+            animate(item, {
+              opacity:  isActive ? 1 : isSide ? 0.38 : 0.1,
+              duration: 700,
+              ease:     'out(3)'
+            });
+            item.style.filter = isActive
+              ? 'drop-shadow(0 0 28px rgba(124,58,237,.75)) drop-shadow(0 0 55px rgba(6,182,212,.4))'
+              : 'none';
+          });
+        }
+
+        function goTo(next) {
+          current = ((next % N) + N) % N;
+          /* spring-bounce the whole track rotation */
+          animate(state, {
+            angle:    -current * step,
+            ease:     spring({ stiffness: 46, damping: 11 }),
+            onUpdate: () => { track.style.transform = `rotateY(${state.angle}deg)`; }
+          });
+          /* scale-pop the incoming headset */
+          animate(items[current], {
+            scale:    [0.82, 1],
+            duration: 850,
+            delay:    220,
+            ease:     spring({ stiffness: 95, damping: 10 })
+          });
+          paintItems(current);
+        }
+
+        paintItems(0);
+        setInterval(() => goTo(current + 1), 2800);
+      }
+
+      /* --- SLIDE ENTRANCES: anime owns opacity + translateY + scale ---
+         CSS transitions are disabled via .anime-loaded class above.
+         Inline styles set by anime always beat CSS class rules, so
+         the spring animation runs cleanly on every slide. */
+      document.body.classList.add('anime-loaded');
+
+      const observer = new MutationObserver(mutations => {
+        mutations.forEach(({ target }) => {
+          if (!target.classList.contains('visible')) return;
+          const els = Array.from(
+            target.querySelectorAll('.reveal:not([data-a])')
+          );
+          if (!els.length) return;
+          els.forEach(el => el.setAttribute('data-a', '1'));
+
+          animate(els, {
+            opacity:    [0, 1],
+            translateY: ['22px', '0px'],
+            scale:      [0.88, 1],
+            duration:   900,
+            delay:      stagger(85, { start: 40 }),
+            ease:       spring({ stiffness: 80, damping: 13 })
+          });
+        });
+      });
+
+      document.querySelectorAll('.slide').forEach(s =>
+        observer.observe(s, { attributes: true, attributeFilter: ['class'] })
+      );
+    })();
+  </script>
+</body>
+</html>
