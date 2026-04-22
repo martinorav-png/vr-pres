@@ -216,7 +216,7 @@
     }
 
     /* ================================================
-       REVEAL ANIMATIONS (CSS fallback — anime overrides when loaded)
+       REVEAL ANIMATIONS (CSS)
        ================================================ */
     .reveal {
       opacity: 0;
@@ -232,18 +232,6 @@
     .slide.visible .reveal:nth-child(4) { transition-delay: 0.29s; }
     .slide.visible .reveal:nth-child(5) { transition-delay: 0.37s; }
     .slide.visible .reveal:nth-child(6) { transition-delay: 0.45s; }
-
-    /* When anime.js is active, it owns all reveal animations.
-       Higher specificity keeps elements at initial state so anime
-       can animate from scratch — inline styles set by anime always
-       beat CSS class rules, so the spring animation wins cleanly. */
-    .anime-loaded .reveal {
-      transition: none !important;
-    }
-    .anime-loaded .slide.visible .reveal {
-      opacity: 0;
-      transform: translateY(22px);
-    }
 
     /* ================================================
        SLIDE 1 -TITLE
@@ -301,6 +289,7 @@
       height: 200px;
       transform-style: preserve-3d;
       transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform;
     }
     .carousel-item {
       position: absolute;
@@ -310,6 +299,15 @@
       justify-content: center;
       transition: opacity 1s ease, filter 1s ease;
       backface-visibility: hidden;
+      opacity: 0.1;
+      filter: none;
+    }
+    .carousel-item.is-side   { opacity: 0.38; }
+    .carousel-item.is-active {
+      opacity: 1;
+      filter:
+        drop-shadow(0 0 28px rgba(124,58,237,.75))
+        drop-shadow(0 0 55px rgba(6,182,212,.4));
     }
     .carousel-item img {
       width: 100%;
@@ -318,6 +316,15 @@
       display: block;
       pointer-events: none;
       user-select: none;
+      transform: scale(0.92);
+      transition: transform 850ms cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform;
+    }
+    .carousel-item.is-active img { transform: scale(1); }
+    @media (prefers-reduced-motion: reduce) {
+      .carousel-track { transition: none; }
+      .carousel-item { transition: none; }
+      .carousel-item img { transition: none; }
     }
 
     @keyframes vr-float {
@@ -1097,7 +1104,6 @@
     </div>
   </section>
 
-  <script src="anime.umd.min.js"></script>
   <script>
     /* ================================================
        RIPPLE GRID -Raw WebGL (no dependencies)
@@ -1383,91 +1389,64 @@
     document.addEventListener('DOMContentLoaded', () => new SlidePresentation());
 
     /* ================================================
-       ANIME.JS — CAROUSEL + SLIDE ENTRANCES
+       NATIVE CAROUSEL (no dependencies)
        ================================================ */
     (function() {
-      if (!window.anime) return;
-      const { animate, spring, stagger } = window.anime;
-
-      /* --- CAROUSEL: spring-physics rotation --- */
       const track = document.getElementById('carouselTrack');
-      if (track) {
-        const items = Array.from(track.querySelectorAll('.carousel-item'));
-        const N     = items.length;
-        const step  = 360 / N;
-        let current = 0;
-        const state = { angle: 0 };
+      if (!track) return;
 
-        track.style.transition = 'none';
-        items.forEach(el => { el.style.transition = 'none'; });
+      const items = Array.from(track.querySelectorAll('.carousel-item'));
+      const N = items.length;
+      if (N < 2) return;
 
-        function paintItems(active) {
-          items.forEach((item, i) => {
-            const rel      = ((i - active) % N + N) % N;
-            const isActive = rel === 0;
-            const isSide   = rel === 1 || rel === N - 1;
-            animate(item, {
-              opacity:  isActive ? 1 : isSide ? 0.38 : 0.1,
-              duration: 700,
-              ease:     'out(3)'
-            });
-            item.style.filter = isActive
-              ? 'drop-shadow(0 0 28px rgba(124,58,237,.75)) drop-shadow(0 0 55px rgba(6,182,212,.4))'
-              : 'none';
-          });
-        }
+      const prefersReducedMotion =
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        function goTo(next) {
-          current = ((next % N) + N) % N;
-          /* spring-bounce the whole track rotation */
-          animate(state, {
-            angle:    -current * step,
-            ease:     spring({ stiffness: 46, damping: 11 }),
-            onUpdate: () => { track.style.transform = `rotateY(${state.angle}deg)`; }
-          });
-          /* scale-pop the incoming headset */
-          animate(items[current], {
-            scale:    [0.82, 1],
-            duration: 850,
-            delay:    220,
-            ease:     spring({ stiffness: 95, damping: 10 })
-          });
-          paintItems(current);
-        }
+      const step = 360 / N;
+      let current = 0;
+      let timer = null;
 
-        paintItems(0);
-        setInterval(() => goTo(current + 1), 2800);
+      function paint(active) {
+        current = ((active % N) + N) % N;
+
+        track.style.transform = `rotateY(${-current * step}deg)`;
+
+        const left = (current - 1 + N) % N;
+        const right = (current + 1) % N;
+
+        items.forEach((item, i) => {
+          item.classList.toggle('is-active', i === current);
+          item.classList.toggle('is-side', i === left || i === right);
+        });
       }
 
-      /* --- SLIDE ENTRANCES: anime owns opacity + translateY + scale ---
-         CSS transitions are disabled via .anime-loaded class above.
-         Inline styles set by anime always beat CSS class rules, so
-         the spring animation runs cleanly on every slide. */
-      document.body.classList.add('anime-loaded');
+      function start() {
+        if (prefersReducedMotion || timer) return;
+        timer = window.setInterval(() => paint(current + 1), 2800);
+      }
 
-      const observer = new MutationObserver(mutations => {
-        mutations.forEach(({ target }) => {
-          if (!target.classList.contains('visible')) return;
-          const els = Array.from(
-            target.querySelectorAll('.reveal:not([data-a])')
-          );
-          if (!els.length) return;
-          els.forEach(el => el.setAttribute('data-a', '1'));
+      function stop() {
+        if (!timer) return;
+        window.clearInterval(timer);
+        timer = null;
+      }
 
-          animate(els, {
-            opacity:    [0, 1],
-            translateY: ['22px', '0px'],
-            scale:      [0.88, 1],
-            duration:   900,
-            delay:      stagger(85, { start: 40 }),
-            ease:       spring({ stiffness: 80, damping: 13 })
-          });
-        });
+      paint(0);
+      start();
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stop();
+        else start();
       });
 
-      document.querySelectorAll('.slide').forEach(s =>
-        observer.observe(s, { attributes: true, attributeFilter: ['class'] })
-      );
+      const s1 = document.getElementById('s1');
+      if (s1 && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver(entries => {
+          entries.forEach(e => (e.isIntersecting ? start() : stop()));
+        }, { threshold: 0.4 });
+        io.observe(s1);
+      }
     })();
   </script>
 </body>
