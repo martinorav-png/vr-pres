@@ -538,6 +538,43 @@
       margin-bottom: clamp(0.85rem, 2.2vw, 1.9rem);
     }
 
+    /* Left “modal”: Alyx + Boneworks stacked in one card (right column unchanged) */
+    #s4 .example-card-dual {
+      min-height: 0;
+    }
+    #s4 .dual-card-title {
+      font-family: var(--font-display);
+      font-size: clamp(0.92rem, 1.65vw, 1.15rem);
+      font-weight: 700;
+      color: var(--white);
+      text-align: center;
+      line-height: 1.2;
+      padding: clamp(0.4rem, 0.9vw, 0.55rem) var(--card-pad);
+      border-bottom: 1px solid var(--sep);
+      flex-shrink: 0;
+    }
+    #s4 .dual-games-stack {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    #s4 .dual-game-block {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    #s4 .dual-game-block + .dual-game-block {
+      border-top: 1px solid var(--sep);
+    }
+    #s4 .example-card-dual .video-wrapper {
+      height: clamp(88px, 12vh, 120px);
+      flex-shrink: 0;
+    }
+
     #s5 .section-label {
       font-size: clamp(0.7rem, 1vw, 0.95rem);
       margin-bottom: clamp(0.55rem, 1.2vw, 1.1rem);
@@ -931,31 +968,65 @@
 
       <div class="example-grid reveal">
 
-        <!-- Half-Life: Alyx -->
-        <div class="example-card purple-card">
-          <div class="video-wrapper">
-            <a class="video-thumb" href="https://www.youtube.com/watch?v=6yQKLp0Uc70" target="_blank" rel="noopener" aria-label="Vaata Half-Life: Alyx gameplay videot">
-              <img src="https://img.youtube.com/vi/6yQKLp0Uc70/maxresdefault.jpg" alt="Half-Life: Alyx gameplay"/>
-              <svg class="play-btn" viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg">
-                <path d="M66.52,7.74C65.7,4.72,63.28,2.3,60.26,1.48C54.96,0,34,0,34,0S13.04,0,7.74,1.48C4.72,2.3,2.3,4.72,1.48,7.74C0,13.04,0,24,0,24S0,34.96,1.48,40.26C2.3,43.28,4.72,45.7,7.74,46.52C13.04,48,34,48,34,48S54.96,48,60.26,46.52C63.28,45.7,65.7,43.28,66.52,40.26C68,34.96,68,24,68,24S68,13.04,66.52,7.74Z" fill="#FF0000"/>
-                <path d="M45,24L27,14V34L45,24Z" fill="#FFFFFF"/>
-              </svg>
-            </a>
-          </div>
-          <div class="example-info">
-            <div class="example-badge-row">
-              <span class="example-badge badge-purple">Mängimine</span>
-              <span class="example-game-name">Half-Life: Alyx</span>
+        <!-- Half-Life: Alyx + Boneworks (one card, two columns layout like before overall) -->
+        <div class="example-card purple-card example-card-dual">
+          <h3 class="dual-card-title">Half Life: Alyx ja Boneworks</h3>
+          <div class="dual-games-stack">
+
+            <div class="dual-game-block">
+              <div class="video-wrapper">
+                <a class="video-thumb" href="https://www.youtube.com/watch?v=6yQKLp0Uc70" target="_blank" rel="noopener" aria-label="Vaata Half-Life: Alyx gameplay videot">
+                  <img src="https://img.youtube.com/vi/6yQKLp0Uc70/maxresdefault.jpg" alt="Half-Life: Alyx gameplay"/>
+                  <svg class="play-btn" viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M66.52,7.74C65.7,4.72,63.28,2.3,60.26,1.48C54.96,0,34,0,34,0S13.04,0,7.74,1.48C4.72,2.3,2.3,4.72,1.48,7.74C0,13.04,0,24,0,24S0,34.96,1.48,40.26C2.3,43.28,4.72,45.7,7.74,46.52C13.04,48,34,48,34,48S54.96,48,60.26,46.52C63.28,45.7,65.7,43.28,66.52,40.26C68,34.96,68,24,68,24S68,13.04,66.52,7.74Z" fill="#FF0000"/>
+                    <path d="M45,24L27,14V34L45,24Z" fill="#FFFFFF"/>
+                  </svg>
+                </a>
+              </div>
+              <div class="example-info">
+                <div class="example-badge-row">
+                  <span class="example-badge badge-purple">Mängimine</span>
+                  <span class="example-game-name">Half-Life: Alyx</span>
+                </div>
+                <div class="example-card-body">
+                  <ul class="example-bullets">
+                    <li>Inventory on seotud maailmaga ja tundub loomulik</li>
+                    <li>Kasutaja saab valida liikumisviisi vastavalt oma eelistusele</li>
+                    <li>Interaktsioonid on füüsilised ja arusaadavad</li>
+                    <li>Õpetamine toimub läbi mängimise, mitte eraldi juhendina</li>
+                  </ul>
+                  <p class="example-summary">Kogu kogemus on väga sujuv, mis aitab säilitada kohaloleku tunnet pikema aja jooksul.</p>
+                </div>
+              </div>
             </div>
-            <div class="example-card-body">
-              <ul class="example-bullets">
-                <li>Inventory on seotud maailmaga ja tundub loomulik</li>
-                <li>Kasutaja saab valida liikumisviisi vastavalt oma eelistusele</li>
-                <li>Interaktsioonid on füüsilised ja arusaadavad</li>
-                <li>Õpetamine toimub läbi mängimise, mitte eraldi juhendina</li>
-              </ul>
-              <p class="example-summary">Kogu kogemus on väga sujuv, mis aitab säilitada kohaloleku tunnet pikema aja jooksul.</p>
+
+            <div class="dual-game-block">
+              <div class="video-wrapper">
+                <a class="video-thumb" href="https://www.youtube.com/watch?v=oP8C2nmv3Ag" target="_blank" rel="noopener" aria-label="Vaata Boneworks treilerit">
+                  <img src="https://img.youtube.com/vi/oP8C2nmv3Ag/maxresdefault.jpg" alt="Boneworks treiler"/>
+                  <svg class="play-btn" viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M66.52,7.74C65.7,4.72,63.28,2.3,60.26,1.48C54.96,0,34,0,34,0S13.04,0,7.74,1.48C4.72,2.3,2.3,4.72,1.48,7.74C0,13.04,0,24,0,24S0,34.96,1.48,40.26C2.3,43.28,4.72,45.7,7.74,46.52C13.04,48,34,48,34,48S54.96,48,60.26,46.52C63.28,45.7,65.7,43.28,66.52,40.26C68,34.96,68,24,68,24S68,13.04,66.52,7.74Z" fill="#FF0000"/>
+                    <path d="M45,24L27,14V34L45,24Z" fill="#FFFFFF"/>
+                  </svg>
+                </a>
+              </div>
+              <div class="example-info">
+                <div class="example-badge-row">
+                  <span class="example-badge badge-purple">Mängimine</span>
+                  <span class="example-game-name">Boneworks</span>
+                </div>
+                <div class="example-card-body">
+                  <ul class="example-bullets">
+                    <li>Täisfüüsiline maailm: esemed ja keha tunnevad end kaaluga ja järjekindlalt</li>
+                    <li>Relvade ning tööriistade käsitsemine põhineb ruumilisel loogikal, mitte menüüdel</li>
+                    <li>Level disain julgustab liikuma ja katsetama füüsiliselt</li>
+                    <li>VR-i tugevused (käed, kaugus, pilk) on mängumehaanika keskmes, mitte lisana</li>
+                  </ul>
+                  <p class="example-summary">Hea näide sellest, kuidas füüsika ja kehaline mängimine võivad VR-is tunda end loomulikult ja kaasahaaravalt.</p>
+                </div>
+              </div>
             </div>
+
           </div>
         </div>
 
